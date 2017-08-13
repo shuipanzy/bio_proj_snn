@@ -1,0 +1,101 @@
+// Test of STDP Neural Network
+// Yao Xiao
+// July 2017
+
+load_file("neuronTemp.hoc")
+
+begintemplate stdpnn
+public input, pre, post, inputs, num_in, inhibitor, inhibi
+
+objectvar pre[1],post[1],netconpre[1],netconpost[1],wa[1],inputs[1],inputSyn[1],outputSyn[1],netconIn[1],r, ihibiSyn[1], inhibitor[1]
+
+proc init(){
+	num_in = 14*14
+	num_out = 10 //change
+	num_c = num_in * num_out    //full connection
+
+	objectvar pre[num_in],post[num_out],netconpre[num_c],netconpost[num_c]
+	objectvar wa[num_c],inputs[num_in],inputSyn[num_in],outputSyn[num_c],netconIn[num_c]
+	objref r
+
+	for i = 0, num_c - 1 {
+		wa[i] = new StdwaSA(1)
+		wa[i].aLTD = wa[i].aLTP
+    	wa[i].wmax = 0.03
+	}
+
+//hh model////////////////////////////////////////////////////////
+
+	for i = 0, num_in - 1 {
+		pre[i] = new procCell()
+		pre[i].soma inputSyn[i] = new ExpSyn(0)
+    	inputSyn[i].e = 0
+		inputs[i] = new NetStim(1)
+		inputs[i].noise = 0
+		inputs[i].start = 5
+		inputs[i].number = 30
+		pre[i].nclist.append(new NetCon(inputs[i],inputSyn[i],-15,1,1))
+	} 
+
+	for j = 0, num_out - 1 {
+		post[j] = new procCell()
+		for i = 0, num_in - 1 {
+			post[j].soma outputSyn[j*num_in+i] = new ExpSyn(0)
+	    	outputSyn[j*num_in+i].e = 0
+		}	
+	}
+
+	r = new Random()
+	w = r.normal(0.02,0.03)
+	for i = 0, num_in - 1 {
+		for j = 0, num_out -1 {
+			w = r.repick()
+			while (w <= 0 || w >0.03){
+				w=r.repick()
+			}
+			pre[i].soma post[j].nclist.append(new NetCon(&v(1),outputSyn[j*num_in+i],-15,3,w))
+		}
+	}
+
+///////////////////////////////////////////////////////////////////
+//stdp:
+
+	for i = 0, num_in - 1{
+		for j = 0, num_out - 1{
+			netconpre[i*num_out+j] = new NetCon(inputs[i],wa[i*num_out+j],0,0,2)
+			post[j].soma netconpost[i*num_out+j] = new NetCon(&v(1),wa[i*num_out+j],0,0,0)
+			setpointer wa[i*num_out+j].wsyn, post[j].nclist.object(i).weight
+		}
+	}
+	
+}
+
+proc inhibi(){
+	objectvar ihibiSyn[num_out*num_out]
+	
+	for i= 0,num_out-1  {
+		for j= 0,num_out-1  {
+			if(j!=i){	
+				post[i].soma ihibiSyn[i*num_out+j] = new ExpSyn(0)
+				ihibiSyn[i*num_out+j].e = -40
+				post[j].soma post[i].nclist.append(new NetCon(&v(1),ihibiSyn[i*num_out+j],-15,0,1))
+			}
+		}
+	}
+}
+
+proc input(){local i
+	for i=0, num_in-1{
+		w=$&1[i]
+		inputs[i].interval = 50
+		inputs[i].number=1000
+		inputs[i].noise=1
+		if(w <= 1.0/90){
+			inputs[i].interval = 0
+			inputs[i].number= 0
+			inputs[i].noise= 0
+		}
+	}
+}
+
+endtemplate stdpnn

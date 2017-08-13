@@ -1,0 +1,60 @@
+begintemplate procCell
+public soma, nclist, updateWeights, Inclist, setWeights
+
+create soma
+objectvar nclist, weightList, Inclist, weights
+
+proc init() {
+
+    create soma
+
+    nclist = new List()
+    Inclist = new List()
+
+    soma {
+      nseg = 1
+      diam = 10.0
+      L = 20.0
+      cm = 2.4
+      insert hh
+      ek = -80.0
+      ena = 55
+      gnabar_hh=0.122
+      gkbar_hh = .05
+      gl_hh = .0003
+      el_hh = -65.0
+    }
+
+}
+
+proc updateWeights() {local i, delta, curWeight, newWeight
+    for i = 0, nclist.count()-1 {
+        delta = $&1[i]
+        curWeight = nclist.object(i).weight
+        newWeight = curWeight + delta
+        if (newWeight < 0) {newWeight = 0}
+        if (newWeight > 0.2) {newWeight = 0.2}
+        nclist.object(i).weight = newWeight
+    }
+}
+
+proc setWeights() {local i, newWeight
+    for i = 0, nclist.count()-1 {
+        newWeight = $&1[i]
+        //if (newWeight < 0) {newWeight = 0}
+        //if (newWeight > 0.2) {newWeight = 0.2}
+        nclist.object(i).weight = newWeight
+    }
+}
+
+obfunc getWeights() {
+    objref weights
+    weights = new Vector(196) //change
+    for i = 0, 195 { 
+        weights.x[i] = nclist.object(i).weight
+    }
+    
+    return weights
+}
+
+endtemplate procCell
